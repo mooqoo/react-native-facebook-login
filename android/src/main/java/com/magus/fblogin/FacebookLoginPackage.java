@@ -1,5 +1,6 @@
 package com.magus.fblogin;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 
@@ -17,14 +18,16 @@ public class FacebookLoginPackage implements ReactPackage {
 
     private Context mContext;
     private FacebookLoginModule mModuleInstance;
+    private Activity activity;
 
-    public FacebookLoginPackage(Context activityContext) {
+    public FacebookLoginPackage(Context activityContext, Activity activity) {
+        this.activity = activity;
         mContext = activityContext;
     }
 
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
-        mModuleInstance = new FacebookLoginModule(reactContext, mContext);
+        mModuleInstance = new FacebookLoginModule(reactContext, mContext, activity);
 
         return Arrays.<NativeModule>asList(mModuleInstance);
     }

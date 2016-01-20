@@ -3,6 +3,7 @@ package com.magus.fblogin;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -25,16 +26,22 @@ import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableType;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
+import com.facebook.share.Sharer;
+import com.facebook.share.model.ShareVideo;
+import com.facebook.share.model.ShareVideoContent;
+import com.facebook.share.widget.ShareDialog;
 
 import org.json.JSONObject;
 
+import java.io.File;
 import java.lang.reflect.Array;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.text.SimpleDateFormat;
 
 public class FacebookLoginModule extends ReactContextBaseJavaModule {
+    private static final String TAG = "TEST_FB";
 
     private final String CALLBACK_TYPE_SUCCESS = "success";
     private final String CALLBACK_TYPE_ERROR = "error";
@@ -44,15 +51,60 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
     private CallbackManager mCallbackManager;
     private Callback mTokenCallback;
     private Callback mLogoutCallback;
+    private Callback mShareCallback;
 
-    public FacebookLoginModule(ReactApplicationContext reactContext, Context activityContext) {
+    private Activity activity;
+    private ShareDialog shareDialog;
+
+    public FacebookLoginModule(ReactApplicationContext reactContext, Context activityContext, Activity activity) {
         super(reactContext);
+
+        this.activity = activity;
 
         mActivityContext = activityContext;
 
         FacebookSdk.sdkInitialize(activityContext.getApplicationContext());
 
         mCallbackManager = CallbackManager.Factory.create();
+
+        // register callback for shareDialog
+        shareDialog = new ShareDialog(activity);
+        shareDialog.registerCallback(mCallbackManager, new FacebookCallback<Sharer.Result>() {
+            @Override
+            public void onSuccess(Sharer.Result result) {
+                Log.d(TAG, "ShareApi.share: onSuccess: result = " + result.toString());
+                if(mShareCallback != null) {
+                    WritableMap map = Arguments.createMap();
+                    map.putString("postId", result.getPostId());
+                    map.putString("message", "ShareDialog success");
+                    map.putString("eventName", "Share: onSuccess");
+                    consumeCallback(mShareCallback, CALLBACK_TYPE_SUCCESS, map);
+                }
+            }
+
+            @Override
+            public void onCancel() {
+                Log.d(TAG, "ShareApi.share: onCancel");
+                if(mShareCallback != null) {
+                    WritableMap map = Arguments.createMap();
+                    map.putString("message", "ShareDialog onCancel event triggered");
+                    map.putString("eventName", "Share: onCancel");
+                    consumeCallback(mShareCallback, CALLBACK_TYPE_CANCEL, map);
+                }
+            }
+
+            @Override
+            public void onError(FacebookException error) {
+                Log.d(TAG, "ShareApi.share: onError: error = " + error.toString());
+                if (mTokenCallback != null) {
+                    WritableMap map = Arguments.createMap();
+                    map.putString("message", error.getMessage());
+                    map.putString("eventName", "Share: onError");
+                    consumeCallback(mShareCallback, CALLBACK_TYPE_ERROR, map);
+                }
+                error.printStackTrace();
+            }
+        });
 
         LoginManager.getInstance().registerCallback(mCallbackManager,
                 new FacebookCallback<LoginResult>() {
@@ -79,20 +131,19 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
                                                     map.putInt("code", error.getErrorCode());
                                                     map.putString("eventName", "onError");
 
-                                                    consumeCallback(CALLBACK_TYPE_ERROR, map);
+                                                    consumeCallback(mTokenCallback, CALLBACK_TYPE_ERROR, map);
                                                 } else {
                                                     WritableMap map = Arguments.createMap();
 
                                                     map.putString("token", loginResult.getAccessToken().getToken());
-                                                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
-                                                    map.putString("expiration", sdf.format(loginResult.getAccessToken().getExpires()));
+                                                    map.putString("expiration", String.valueOf(loginResult.getAccessToken().getExpires()));
 
                                                     //TODO: figure out a way to return profile as WriteableMap
                                                     //    OR: expose method to get current profile
                                                     map.putString("profile", me.toString());
                                                     map.putString("eventName", "onLogin");
 
-                                                    consumeCallback(CALLBACK_TYPE_SUCCESS, map);
+                                                    consumeCallback(mTokenCallback, CALLBACK_TYPE_SUCCESS, map);
                                                 }
                                             }
                                         }
@@ -115,7 +166,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
                             WritableMap map = Arguments.createMap();
                             map.putString("message", "FacebookCallback onCancel event triggered");
                             map.putString("eventName", "onCancel");
-                            consumeCallback(CALLBACK_TYPE_CANCEL, map);
+                            consumeCallback(mTokenCallback, CALLBACK_TYPE_CANCEL, map);
                         }
                     }
 
@@ -127,7 +178,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
                             map.putString("message", exception.getMessage());
                             map.putString("eventName", "onError");
 
-                            consumeCallback(CALLBACK_TYPE_ERROR, map);
+                            consumeCallback(mTokenCallback, CALLBACK_TYPE_ERROR, map);
                         }
                     }
                 });
@@ -139,21 +190,21 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
         map.putString("message", value);
         map.putString("eventName", onPermissionsMissing);
 
-        consumeCallback(callbackType, map);
+        consumeCallback(mTokenCallback, callbackType, map);
     }
 
-    private void consumeCallback(String type, WritableMap map) {
-        if (mTokenCallback != null) {
+    private void consumeCallback(Callback callback,  String type, WritableMap map) {
+        if (callback != null) {
             map.putString("type", type);
             map.putString("provider", "facebook");
 
             if(type == CALLBACK_TYPE_SUCCESS){
-                mTokenCallback.invoke(null, map);
+                callback.invoke(null, map);
             }else{
-                mTokenCallback.invoke(map, null);
+                callback.invoke(map, null);
             }
 
-            mTokenCallback = null;
+            callback = null;
         }
     }
 
@@ -174,11 +225,11 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
                 map.putString("eventName", "onLoginFound");
                 map.putBoolean("cache", true);
 
-                consumeCallback(CALLBACK_TYPE_SUCCESS, map);
+                consumeCallback(mTokenCallback, CALLBACK_TYPE_SUCCESS, map);
             } else {
                 map.putString("message", "Cannot register multiple callbacks");
                 map.putString("eventName", "onCancel");
-                consumeCallback(CALLBACK_TYPE_CANCEL, map);
+                consumeCallback(mTokenCallback, CALLBACK_TYPE_CANCEL, map);
             }
         }
 
@@ -205,7 +256,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
 
         map.putString("message", "Facebook Logout executed");
         map.putString("eventName", "onLogout");
-        consumeCallback(CALLBACK_TYPE_SUCCESS, map);
+        consumeCallback(mTokenCallback, CALLBACK_TYPE_SUCCESS, map);
 
     }
 
@@ -236,6 +287,32 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
         }else{
             callback.invoke("");
         }
+    }
+
+    @ReactMethod
+    public void shareVideo(String uri, String newsTitle, final Callback callback) {
+        mShareCallback = callback;
+
+        // test msg
+        Log.d(TAG, "shareVideo2: uri = " + uri);
+        // "/storage/emulated/0/Movies/Waffle/VID_20160120_152536.mp4"
+        // test input
+
+        Uri file_uri = Uri.parse(uri);
+        File file = new File(file_uri.getPath());
+        Uri local_uri = Uri.fromFile(file);
+        Log.e(TAG, "local_uri = " + local_uri);
+
+        ShareVideo video = new ShareVideo.Builder()
+                .setLocalUrl(local_uri)
+                .build();
+
+        ShareVideoContent content = new ShareVideoContent.Builder()
+                .setVideo(video)
+                .setContentTitle(newsTitle)
+                .build();
+
+        shareDialog.show(activity, content);
     }
 
     public boolean handleActivityResult(final int requestCode, final int resultCode, final Intent data) {
