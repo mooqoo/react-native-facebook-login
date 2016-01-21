@@ -257,7 +257,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
         map.putString("message", "Facebook Logout executed");
         map.putString("eventName", "onLogout");
         consumeCallback(mTokenCallback, CALLBACK_TYPE_SUCCESS, map);
-
+        mTokenCallback = null;
     }
 
     private List<String> getPermissions(ReadableArray permissions) {
