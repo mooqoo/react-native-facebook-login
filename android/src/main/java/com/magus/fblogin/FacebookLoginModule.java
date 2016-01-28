@@ -168,6 +168,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
                             map.putString("eventName", "onCancel");
                             consumeCallback(mTokenCallback, CALLBACK_TYPE_CANCEL, map);
                         }
+                        mTokenCallback = null;
                     }
 
                     @Override
@@ -180,6 +181,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
 
                             consumeCallback(mTokenCallback, CALLBACK_TYPE_ERROR, map);
                         }
+                        mTokenCallback = null;
                     }
                 });
     }
