@@ -53,7 +53,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
     private CallbackManager mCallbackManager;
     private Callback mLoginCallback;
 
-    private ShareDialog mShareDigalog;
+    private ShareDialog mShareDialog;
     private Callback mShareCallback;
 
     public FacebookLoginModule(ReactApplicationContext reactContext, Context activityContext, Activity activity) {
@@ -152,8 +152,8 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
     }
 
     private void setupShareDialog() {
-        mShareDigalog = new ShareDialog(mActivity);
-        mShareDigalog.registerCallback(mCallbackManager, new FacebookCallback<Sharer.Result>() {
+        mShareDialog = new ShareDialog(mActivity);
+        mShareDialog.registerCallback(mCallbackManager, new FacebookCallback<Sharer.Result>() {
             @Override
             public void onSuccess(Sharer.Result result) {
                 Log.d(TAG, "ShareApi.share: onSuccess: result = " + result.toString());
@@ -277,7 +277,9 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
             .setContentTitle(newsTitle)
             .build();
 
-        mShareDigalog.show(mActivity, content);
+        if (mShareDialog.canShow(content)) {
+          mShareDialog.show(content);
+        }
     }
 
     public boolean handleActivityResult(final int requestCode, final int resultCode, final Intent data) {
