@@ -269,7 +269,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
         // "/storage/emulated/0/Movies/Waffle/VID_20160120_152536.mp4"
         // test input
 
-        Uri uri = Uri.parse(uriString);
+        Uri uri = Uri.parse("file://" + uriString);
 
         ShareVideo video = new ShareVideo.Builder()
             .setLocalUrl(uri)
