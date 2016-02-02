@@ -71,45 +71,6 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
 
     private void setupFBLoginCallback() {
 
-        GraphRequest.GraphJSONObjectCallback graphRequestCB =
-            new GraphRequest.GraphJSONObjectCallback() {
-                @Override
-                public void onCompleted(JSONObject me, GraphResponse response) {
-                    if (mLoginCallback == null) return;
-
-                    FacebookRequestError error = response.getError();
-
-                    if (error != null) {
-                        WritableMap map = Arguments.createMap();
-
-                        map.putString("errorType", error.getErrorType());
-                        map.putString("message", error.getErrorMessage());
-                        map.putString("recoveryMessage", error.getErrorRecoveryMessage());
-                        map.putString("userMessage", error.getErrorUserMessage());
-                        map.putString("userTitle", error.getErrorUserTitle());
-                        map.putInt("code", error.getErrorCode());
-                        map.putString("eventName", "onError");
-
-                        invokeCallback(mLoginCallback, CALLBACK_TYPE_ERROR, map);
-                        mLoginCallback = null;
-                    } else {
-                        WritableMap map = Arguments.createMap();
-
-                        map.putString("token", loginResult.getAccessToken().getToken());
-                        map.putString("expiration", String.valueOf(loginResult.getAccessToken().getExpires()));
-
-                        // TODO:
-                        // figure out a way to return profile as WriteableMap
-                        // or expose method to get current profile
-                        map.putString("profile", me.toString());
-                        map.putString("eventName", "onLogin");
-
-                        invokeCallback(mLoginCallback, CALLBACK_TYPE_SUCCESS, map);
-                        mLoginCallback = null;
-                    }
-                }
-            };
-
         FacebookCallback<LoginResult> fbcb =
             new FacebookCallback<LoginResult>() {
                 @Override
@@ -117,7 +78,43 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
 
                     GraphRequest request = GraphRequest.newMeRequest(
                         loginResult.getAccessToken(),
-                        graphRequestCB
+                            new GraphRequest.GraphJSONObjectCallback() {
+                                @Override
+                                public void onCompleted(JSONObject me, GraphResponse response) {
+                                    if (mLoginCallback == null) return;
+
+                                    FacebookRequestError error = response.getError();
+
+                                    if (error != null) {
+                                        WritableMap map = Arguments.createMap();
+
+                                        map.putString("errorType", error.getErrorType());
+                                        map.putString("message", error.getErrorMessage());
+                                        map.putString("recoveryMessage", error.getErrorRecoveryMessage());
+                                        map.putString("userMessage", error.getErrorUserMessage());
+                                        map.putString("userTitle", error.getErrorUserTitle());
+                                        map.putInt("code", error.getErrorCode());
+                                        map.putString("eventName", "onError");
+
+                                        invokeCallback(mLoginCallback, CALLBACK_TYPE_ERROR, map);
+                                        mLoginCallback = null;
+                                    } else {
+                                        WritableMap map = Arguments.createMap();
+
+                                        map.putString("token", loginResult.getAccessToken().getToken());
+                                        map.putString("expiration", String.valueOf(loginResult.getAccessToken().getExpires()));
+
+                                        // TODO:
+                                        // figure out a way to return profile as WriteableMap
+                                        // or expose method to get current profile
+                                        map.putString("profile", me.toString());
+                                        map.putString("eventName", "onLogin");
+
+                                        invokeCallback(mLoginCallback, CALLBACK_TYPE_SUCCESS, map);
+                                        mLoginCallback = null;
+                                    }
+                                }
+                            }
                     );
 
                     Bundle parameters = new Bundle();
@@ -192,7 +189,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
                 map.putString("message", error.getMessage());
                 map.putString("eventName", "Share: onError");
                 invokeCallback(mShareCallback, CALLBACK_TYPE_ERROR, map);
-                mShareCallback = nulll;
+                mShareCallback = null;
             }
         });
     }
@@ -280,7 +277,7 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
             .setContentTitle(newsTitle)
             .build();
 
-        mShareDigalog.show(activity, content);
+        mShareDigalog.show(mActivity, content);
     }
 
     public boolean handleActivityResult(final int requestCode, final int resultCode, final Intent data) {
