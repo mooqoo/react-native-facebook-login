@@ -15,21 +15,9 @@ import java.util.Collections;
 import java.util.List;
 
 public class FacebookLoginPackage implements ReactPackage {
-
-    private Context mContext;
-    private FacebookLoginModule mModuleInstance;
-    private Activity activity;
-
-    public FacebookLoginPackage(Context activityContext, Activity activity) {
-        this.activity = activity;
-        mContext = activityContext;
-    }
-
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
-        mModuleInstance = new FacebookLoginModule(reactContext, mContext, activity);
-
-        return Arrays.<NativeModule>asList(mModuleInstance);
+        return Arrays.<NativeModule>asList(new FacebookLoginModule(reactContext));
     }
 
     @Override
@@ -40,13 +28,5 @@ public class FacebookLoginPackage implements ReactPackage {
     @Override
     public List<ViewManager> createViewManagers(ReactApplicationContext reactContext) {
         return Arrays.asList();
-    }
-
-    public boolean handleActivityResult(final int requestCode, final int resultCode, final Intent data) {
-        if (mModuleInstance == null) {
-            return false;
-        }
-
-        return mModuleInstance.handleActivityResult(requestCode, resultCode, data);
     }
 }
