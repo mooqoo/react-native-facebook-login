@@ -17,6 +17,7 @@ import com.facebook.GraphRequest;
 import com.facebook.GraphResponse;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
+import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -40,15 +41,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class FacebookLoginModule extends ReactContextBaseJavaModule {
+public class FacebookLoginModule extends ReactContextBaseJavaModule implements ActivityEventListener {
     private static final String TAG = "TEST_FB";
 
     private final String CALLBACK_TYPE_SUCCESS = "success";
     private final String CALLBACK_TYPE_ERROR = "error";
     private final String CALLBACK_TYPE_CANCEL = "cancel";
-
-    private Context mActivityContext;
-    private Activity mActivity;
 
     private CallbackManager mCallbackManager;
     private Callback mLoginCallback;
@@ -56,17 +54,14 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
     private ShareDialog mShareDialog;
     private Callback mShareCallback;
 
-    public FacebookLoginModule(ReactApplicationContext reactContext, Context activityContext, Activity activity) {
+    public FacebookLoginModule(ReactApplicationContext reactContext) {
         super(reactContext);
 
-        mActivityContext = activityContext;
-        mActivity = activity;
-
-        FacebookSdk.sdkInitialize(activityContext.getApplicationContext());
+        FacebookSdk.sdkInitialize(reactContext.getApplicationContext());
         mCallbackManager = CallbackManager.Factory.create();
-
         setupFBLoginCallback();
-        setupShareDialog();
+
+        reactContext.addActivityEventListener(this);
     }
 
     private void setupFBLoginCallback() {
@@ -152,7 +147,10 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
     }
 
     private void setupShareDialog() {
-        mShareDialog = new ShareDialog(mActivity);
+        Activity activity = getCurrentActivity();
+        if (activity == null) return;
+
+        mShareDialog = new ShareDialog(activity);
         mShareDialog.registerCallback(mCallbackManager, new FacebookCallback<Sharer.Result>() {
             @Override
             public void onSuccess(Sharer.Result result) {
@@ -214,9 +212,12 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void loginWithPermissions(ReadableArray permissions, final Callback callback) {
+        Activity activity = getCurrentActivity();
+        if (activity == null) return;
+
         mLoginCallback = callback;
         List<String> _permissions = getPermissions(permissions);
-        LoginManager.getInstance().logInWithReadPermissions(mActivity, _permissions);
+        LoginManager.getInstance().logInWithReadPermissions(activity, _permissions);
     }
 
     @ReactMethod
@@ -277,12 +278,23 @@ public class FacebookLoginModule extends ReactContextBaseJavaModule {
             .setContentTitle(newsTitle)
             .build();
 
+        if (mShareDialog == null) {
+            setupShareDialog();
+        }
+
         if (mShareDialog.canShow(content)) {
           mShareDialog.show(content);
         }
     }
 
-    public boolean handleActivityResult(final int requestCode, final int resultCode, final Intent data) {
-        return mCallbackManager.onActivityResult(requestCode, resultCode, data);
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        Log.d("FacebookLoginModule", "I got here");
+        mCallbackManager.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+
     }
 }
